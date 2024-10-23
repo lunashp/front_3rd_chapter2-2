@@ -1,71 +1,54 @@
-// useDiscountCalculator.ts
+import { useState, useCallback } from "react";
 import { CartItem, Coupon } from "../../types";
-
-interface DiscountResult {
-  totalBeforeDiscount: number;
-  totalAfterDiscount: number;
-  totalDiscount: number;
-}
+import { applyCoupon, getMaxDiscountRate } from "./utils/cartUtils";
 
 /**
- * 장바구니의 총 금액을 계산하고, 선택된 쿠폰과 상품의 할인율을 적용하여
- * 할인 전, 할인 후, 할인 금액을 반환하는 커스텀 훅입니다.
+ * 할인 계산 훅
+ * 장바구니 아이템과 선택된 쿠폰을 기반으로 할인 금액과 최종 금액을 계산합니다.
  *
- * @param {CartItem[]} cart - 총 금액을 계산할 장바구니 아이템 배열.
+ * @param {CartItem[]} cart - 장바구니 아이템 배열.
  * @param {Coupon | null} selectedCoupon - 적용할 쿠폰 (없을 경우 null).
- * @returns {DiscountResult} - 할인 전, 할인 후, 할인 금액을 포함하는 객체.
+ * @returns {{ totalBeforeDiscount: number, totalAfterDiscount: number, totalDiscount: number }} -
+ *          총 금액 (할인 전, 할인 후, 할인 금액).
  */
-export const useDiscountCalculator = (
+const useDiscountCalculator = (
   cart: CartItem[],
   selectedCoupon: Coupon | null
-): DiscountResult => {
-  const calculateTotal = (): DiscountResult => {
-    let totalBeforeDiscount = 0;
-    let totalAfterDiscount = 0;
+) => {
+  const [totalBeforeDiscount, setTotalBeforeDiscount] = useState(0);
+  const [totalAfterDiscount, setTotalAfterDiscount] = useState(0);
+  const [totalDiscount, setTotalDiscount] = useState(0);
+
+  const calculateTotal = useCallback(() => {
+    let beforeDiscount = 0;
+    let afterDiscount = 0;
 
     cart.forEach((item) => {
-      const { price } = item.product;
-      const { quantity } = item;
-      totalBeforeDiscount += price * quantity;
+      const discountRate = getMaxDiscountRate(
+        item.product.discounts,
+        item.quantity
+      );
+      const itemBeforeDiscount = item.product.price * item.quantity;
+      const itemAfterDiscount = itemBeforeDiscount * (1 - discountRate);
 
-      // 상품의 최대 할인율을 계산
-      const discount = item.product.discounts.reduce((maxDiscount, d) => {
-        return quantity >= d.quantity && d.rate > maxDiscount
-          ? d.rate
-          : maxDiscount;
-      }, 0);
-
-      // 할인을 적용한 가격 계산
-      totalAfterDiscount += price * quantity * (1 - discount);
+      beforeDiscount += itemBeforeDiscount;
+      afterDiscount += itemAfterDiscount;
     });
 
-    let totalDiscount = totalBeforeDiscount - totalAfterDiscount;
+    let afterDiscountWithCoupon = applyCoupon(afterDiscount, selectedCoupon);
+    let discountAmount = beforeDiscount - afterDiscountWithCoupon;
 
-    // 쿠폰 적용
-    if (selectedCoupon) {
-      if (selectedCoupon.discountType === "amount") {
-        totalAfterDiscount = Math.max(
-          0,
-          totalAfterDiscount - selectedCoupon.discountValue
-        );
-      } else {
-        totalAfterDiscount *= 1 - selectedCoupon.discountValue / 100;
-      }
-      totalDiscount = totalBeforeDiscount - totalAfterDiscount;
-    }
+    setTotalBeforeDiscount(Math.round(beforeDiscount));
+    setTotalAfterDiscount(Math.round(afterDiscountWithCoupon));
+    setTotalDiscount(Math.round(discountAmount));
+  }, [cart, selectedCoupon]);
 
-    return {
-      totalBeforeDiscount: Math.round(totalBeforeDiscount),
-      totalAfterDiscount: Math.round(totalAfterDiscount),
-      totalDiscount: Math.round(totalDiscount),
-    };
+  return {
+    totalBeforeDiscount,
+    totalAfterDiscount,
+    totalDiscount,
+    calculateTotal,
   };
-
-  return calculateTotal();
 };
 
-export const getMaxDiscount = (
-  discounts: { quantity: number; rate: number }[]
-) => {
-  return discounts.reduce((max, discount) => Math.max(max, discount.rate), 0);
-};
+export default useDiscountCalculator;

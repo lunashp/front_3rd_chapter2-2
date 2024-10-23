@@ -1,4 +1,28 @@
-import { CartItem, Coupon } from "../../../types";
+import { CartItem, Coupon, Product } from "../../../types";
+
+/**
+ * 주어진 수량에 따라 적용 가능한 최대 할인율을 계산합니다.
+ *
+ * @param {Array<{ quantity: number, rate: number }>} discounts - 적용 가능한 할인 목록.
+ * @param {number} quantity - 제품의 구매 수량.
+ * @returns {number} - 적용 가능한 최대 할인율.
+ */
+export const getMaxDiscountRate = (
+  discounts: { quantity: number; rate: number }[],
+  quantity: number
+): number => {
+  return discounts.reduce((maxDiscount, discount) => {
+    return quantity >= discount.quantity && discount.rate > maxDiscount
+      ? discount.rate
+      : maxDiscount;
+  }, 0);
+};
+
+export const getMaxDiscount = (
+  discounts: { quantity: number; rate: number }[]
+) => {
+  return discounts.reduce((max, discount) => Math.max(max, discount.rate), 0);
+};
 
 /**
  * 주어진 장바구니 아이템의 총 가격을 계산합니다.
@@ -11,14 +35,10 @@ export const calculateItemTotal = (item: CartItem) => {
   const { price } = item.product;
   const { quantity } = item;
 
-  // 적용된 할인율을 구하고 총 가격 계산
-  const discount = item.product.discounts.reduce((maxDiscount, d) => {
-    return quantity >= d.quantity && d.rate > maxDiscount
-      ? d.rate
-      : maxDiscount;
-  }, 0);
+  const discountRate = getMaxDiscountRate(item.product.discounts, quantity);
+  const totalBeforeDiscount = price * quantity;
+  const totalAfterDiscount = totalBeforeDiscount * (1 - discountRate);
 
-  const totalAfterDiscount = price * quantity * (1 - discount);
   return totalAfterDiscount;
 };
 
@@ -43,6 +63,26 @@ export const getMaxApplicableDiscount = (item: CartItem) => {
 };
 
 /**
+ * 선택된 쿠폰을 총 가격에 적용합니다.
+ *
+ * @param {number} totalAfterDiscount - 할인 적용 후의 총 금액.
+ * @param {Coupon | null} selectedCoupon - 적용할 쿠폰 (없을 경우 null).
+ * @returns {number} - 쿠폰 적용 후의 최종 금액.
+ */
+export const applyCoupon = (
+  totalAfterDiscount: number,
+  selectedCoupon: Coupon | null
+): number => {
+  if (!selectedCoupon) return totalAfterDiscount;
+
+  if (selectedCoupon.discountType === "amount") {
+    return Math.max(0, totalAfterDiscount - selectedCoupon.discountValue);
+  } else {
+    return totalAfterDiscount * (1 - selectedCoupon.discountValue / 100);
+  }
+};
+
+/**
  * 장바구니의 총 금액을 계산합니다.
  * 선택된 쿠폰이 있는 경우 해당 쿠폰을 적용하여 최종 금액을 계산합니다.
  *
@@ -54,29 +94,27 @@ export const getMaxApplicableDiscount = (item: CartItem) => {
 export const calculateCartTotal = (
   cart: CartItem[],
   selectedCoupon: Coupon | null
-) => {
+): {
+  totalBeforeDiscount: number;
+  totalAfterDiscount: number;
+  totalDiscount: number;
+} => {
   let totalBeforeDiscount = 0;
   let totalAfterDiscount = 0;
 
   cart.forEach((item) => {
-    totalBeforeDiscount += item.product.price * item.quantity;
-    totalAfterDiscount += calculateItemTotal(item);
+    const { price } = item.product;
+    const { quantity } = item;
+
+    const totalItemBeforeDiscount = price * quantity;
+    const itemAfterDiscount = calculateItemTotal(item);
+
+    totalBeforeDiscount += totalItemBeforeDiscount;
+    totalAfterDiscount += itemAfterDiscount;
   });
 
-  let totalDiscount = totalBeforeDiscount - totalAfterDiscount;
-
-  // 쿠폰 적용
-  if (selectedCoupon) {
-    if (selectedCoupon.discountType === "amount") {
-      totalAfterDiscount = Math.max(
-        0,
-        totalAfterDiscount - selectedCoupon.discountValue
-      );
-    } else {
-      totalAfterDiscount *= 1 - selectedCoupon.discountValue / 100;
-    }
-    totalDiscount = totalBeforeDiscount - totalAfterDiscount;
-  }
+  totalAfterDiscount = applyCoupon(totalAfterDiscount, selectedCoupon);
+  const totalDiscount = totalBeforeDiscount - totalAfterDiscount;
 
   return {
     totalBeforeDiscount: Math.round(totalBeforeDiscount),
@@ -111,4 +149,16 @@ export const updateCartItemQuantity = (
       return item;
     })
     .filter((item): item is CartItem => item !== null);
+};
+
+/**
+ * 장바구니에 있는 상품을 기준으로 제품의 남은 재고를 계산
+ *
+ * @param {Product} product - 남은 재고를 계산할 제품
+ * @param {CartItem[]} cart - 현재 장바구니에 있는 아이템 목록
+ * @returns {number} - 장바구니의 수량을 고려한 제품의 남은 재고
+ */
+export const getRemainingStock = (product: Product, cart: CartItem[]) => {
+  const cartItem = cart.find((item) => item.product.id === product.id);
+  return product.stock - (cartItem?.quantity || 0);
 };

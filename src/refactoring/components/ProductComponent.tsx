@@ -1,5 +1,5 @@
-import { CartItem, getRemainingStock, Product } from "../../types.ts";
-import { getMaxDiscount } from "../hooks/useDiscountCalculator.ts";
+import { CartItem, Product } from "../../types.ts";
+import { getMaxDiscount, getRemainingStock } from "../hooks/utils/cartUtils.ts";
 
 interface ProductProps {
   product: Product;

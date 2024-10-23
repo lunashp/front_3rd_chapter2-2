@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CartItem, Coupon, Product } from "../../types";
 import { calculateCartTotal, updateCartItemQuantity } from "./utils/cartUtils";
 import useLocalStorage from "./useLocalStorage";
@@ -18,8 +18,8 @@ import useLocalStorage from "./useLocalStorage";
  * }} - 장바구니 관련 상태와 액션 함수들
  */
 export const useCart = () => {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  // const [cart, setCart] = useLocalStorage<CartItem[]>("cart", []);
+  // const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useLocalStorage<CartItem[]>("cart", []);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
 
   // useEffect(() => {

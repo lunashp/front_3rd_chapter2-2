@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Coupon, Product } from "../../types.ts";
-import { useDiscountCalculator } from "../hooks/useDiscountCalculator.ts";
 import { ProductComponent } from "./ProductComponent.tsx";
 import { CartItemComponent } from "./CartItemComponent.tsx";
 import { CouponComponent } from "./CouponComponent.tsx";
 import { OrderSummaryComponent } from "./OrderSummaryComponent.tsx";
 import useProductSearch from "../hooks/useProductSearch.ts";
 import { useCart } from "../hooks/useCart.ts";
+import useDiscountCalculator from "../hooks/useDiscountCalculator.ts";
 
 interface Props {
   products: Product[];
@@ -26,8 +26,16 @@ export const CartPage = ({ products, coupons }: Props) => {
     selectedCoupon,
   } = useCart();
 
-  const { totalBeforeDiscount, totalAfterDiscount, totalDiscount } =
-    useDiscountCalculator(cart, selectedCoupon);
+  const {
+    totalBeforeDiscount,
+    totalAfterDiscount,
+    totalDiscount,
+    calculateTotal,
+  } = useDiscountCalculator(cart, selectedCoupon);
+
+  useEffect(() => {
+    calculateTotal();
+  }, [cart, selectedCoupon]);
 
   return (
     <div className="container mx-auto p-4">
