@@ -19,6 +19,7 @@ export const ProductAccordion = ({
   newDiscount,
   setNewDiscount,
 }: Props) => {
+  const DISCOUNT_RATE_MULTIPLIER = 100;
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [openProductIds, setOpenProductIds] = useState<Set<string>>(new Set());
 
@@ -196,8 +197,8 @@ export const ProductAccordion = ({
               {product.discounts.map((discount, index) => (
                 <div key={index} className="mb-2">
                   <span>
-                    {discount.quantity}개 이상 구매 시 {discount.rate * 100}%
-                    할인
+                    {discount.quantity}개 이상 구매 시{" "}
+                    {discount.rate * DISCOUNT_RATE_MULTIPLIER}% 할인
                   </span>
                 </div>
               ))}
