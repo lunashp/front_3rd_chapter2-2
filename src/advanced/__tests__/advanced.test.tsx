@@ -1,9 +1,16 @@
 import { useState } from "react";
 import { describe, expect, test } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  within,
+} from "@testing-library/react";
 import { CartPage } from "../../refactoring/components/cart/CartPage";
 import { AdminPage } from "../../refactoring/components/admin/AdminPage";
-import { Coupon, Product } from "../../types";
+import { Coupon, Discount, Product } from "../../types";
 import {
   addDiscountToProduct,
   createProductWithId,
@@ -11,6 +18,7 @@ import {
   removeDiscountFromProduct,
   updateProductField,
 } from "../../refactoring/hooks/utils/productUtils";
+import { useForm } from "../../refactoring/hooks/useForm";
 
 const mockProducts: Product[] = [
   {
@@ -49,7 +57,27 @@ const mockCoupons: Coupon[] = [
     discountValue: 10,
   },
 ];
+const mockProduct: Product = {
+  id: "p1",
+  name: "상품1",
+  price: 10000,
+  stock: 20,
+  discounts: [{ quantity: 10, rate: 0.1 }],
+};
 
+const initialProduct: Omit<Product, "id"> = {
+  name: "Test Product",
+  price: 100,
+  stock: 10,
+  discounts: [],
+};
+
+const initialCoupon: Coupon = {
+  code: "DISCOUNT10",
+  name: "10% off",
+  discountType: "percentage",
+  discountValue: 10,
+};
 const TestAdminPage = () => {
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [coupons, setCoupons] = useState<Coupon[]>(mockCoupons);
@@ -268,47 +296,6 @@ describe("advanced > ", () => {
     });
   });
 
-  // // 예제 제품 데이터
-  // const mockProducts: Product[] = [
-  //   {
-  //     id: "p1",
-  //     name: "상품1",
-  //     price: 10000,
-  //     stock: 20,
-  //     discounts: [{ quantity: 10, rate: 0.1 }],
-  //   },
-  //   {
-  //     id: "p2",
-  //     name: "상품2",
-  //     price: 20000,
-  //     stock: 20,
-  //     discounts: [{ quantity: 10, rate: 0.15 }],
-  //   },
-  //   {
-  //     id: "p3",
-  //     name: "상품3",
-  //     price: 30000,
-  //     stock: 20,
-  //     discounts: [{ quantity: 10, rate: 0.2 }],
-  //   },
-  // ];
-
-  const mockProduct: Product = {
-    id: "p1",
-    name: "상품1",
-    price: 10000,
-    stock: 20,
-    discounts: [{ quantity: 10, rate: 0.1 }],
-  };
-
-  // {
-  //   id: "p1",
-  //   name: "상품1",
-  //   price: 10000,
-  //   stock: 20,
-  //   discounts: [{ quantity: 10, rate: 0.1 }],
-  // },
-
   describe("productUtil 테스트", () => {
     test("updateProductField는 제품 필드를 업데이트해야 한다", () => {
       const updatedProduct = updateProductField(mockProduct, "price", 2000);
@@ -355,9 +342,112 @@ describe("advanced > ", () => {
       expect(newProduct.id).toBeDefined();
       expect(newProduct.name).toBe("New Product");
     });
+  });
 
-    test("새로운 hook 함수르 만든 후에 테스트 코드를 작성해서 실행해보세요", () => {
-      expect(true).toBe(false);
+  describe("useForm 테스트", () => {
+    test("초기 상태가 올바르게 설정된다", () => {
+      const { result } = renderHook(() =>
+        useForm({ initialProduct, initialCoupon })
+      );
+
+      expect(result.current.newProduct).toEqual(initialProduct);
+      expect(result.current.newCoupon).toEqual(initialCoupon);
+      expect(result.current.newDiscount).toEqual({ quantity: 0, rate: 0 });
+    });
+
+    test("setNewProduct 함수가 새 제품으로 상태를 업데이트 한다", () => {
+      const { result } = renderHook(() =>
+        useForm({ initialProduct, initialCoupon })
+      );
+
+      const newProduct = {
+        name: "Updated Product",
+        price: 200,
+        stock: 5,
+        discounts: [],
+      };
+
+      act(() => {
+        result.current.setNewProduct(newProduct);
+      });
+
+      expect(result.current.newProduct).toEqual(newProduct);
+    });
+
+    test("setNewCoupon 함수가 새 쿠폰으로 상태를 업데이트 한다", () => {
+      const { result } = renderHook(() =>
+        useForm({ initialProduct, initialCoupon })
+      );
+
+      const newCoupon: Coupon = {
+        code: "DISCOUNT20",
+        name: "20% off",
+        discountType: "percentage",
+        discountValue: 20,
+      };
+
+      act(() => {
+        result.current.setNewCoupon(newCoupon);
+      });
+
+      expect(result.current.newCoupon).toEqual(newCoupon);
+    });
+
+    test("resetNewProduct 함수가 초기 제품 상태로 리셋한다", () => {
+      const { result } = renderHook(() =>
+        useForm({ initialProduct, initialCoupon })
+      );
+
+      const newProduct = {
+        name: "Updated Product",
+        price: 200,
+        stock: 5,
+        discounts: [],
+      };
+
+      act(() => {
+        result.current.setNewProduct(newProduct);
+        result.current.resetNewProduct();
+      });
+
+      expect(result.current.newProduct).toEqual(initialProduct);
+    });
+
+    test("resetNewCoupon 함수가 초기 쿠폰 상태로 리셋한다", () => {
+      const { result } = renderHook(() =>
+        useForm({ initialProduct, initialCoupon })
+      );
+
+      const newCoupon: Coupon = {
+        code: "DISCOUNT20",
+        name: "20% off",
+        discountType: "percentage",
+        discountValue: 20,
+      };
+
+      act(() => {
+        result.current.setNewCoupon(newCoupon);
+        result.current.resetNewCoupon();
+      });
+
+      expect(result.current.newCoupon).toEqual(initialCoupon);
+    });
+
+    test("setNewDiscount 함수가 새 할인으로 상태를 업데이트 한다", () => {
+      const { result } = renderHook(() =>
+        useForm({ initialProduct, initialCoupon })
+      );
+
+      const newDiscount: Discount = {
+        quantity: 2,
+        rate: 10,
+      };
+
+      act(() => {
+        result.current.setNewDiscount(newDiscount);
+      });
+
+      expect(result.current.newDiscount).toEqual(newDiscount);
     });
   });
 });
